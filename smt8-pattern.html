@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SMT8 Pattern Editor V1</title>
+  <style>
+    :root {
+      --bg: #1a1d21;
+      --panel: #23272e;
+      --panel2: #2b3038;
+      --border: #3a414c;
+      --text: #e8eaed;
+      --muted: #9aa3af;
+      --accent: #3d9a8b;
+      --accent-hover: #48b3a2;
+      --danger: #d46363;
+      --warn: #c9a227;
+      --ok: #5fad6e;
+      --mono: "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
+      --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 8px 0 0;
+      letter-spacing: 0.02em;
+    }
+    .spacer { flex: 1; }
+    button, .file-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      padding: 7px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover, .file-btn:hover { border-color: #556070; }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #06110f;
+      font-weight: 600;
+    }
+    button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .file-btn input { display: none; }
+    .meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 8px 16px;
+      background: #1e2228;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta strong { color: var(--text); font-weight: 600; }
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 14px;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      font-size: 13px;
+    }
+    .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+    main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px 8px;
+      overflow: auto;
+    }
+    #editor {
+      flex: 0 0 auto;
+      width: 100%;
+      min-width: 320px;
+      min-height: 160px;
+      height: calc(100vh - 240px);
+      max-width: 100%;
+      resize: both;
+      overflow: auto;
+      background: #12151a;
+      color: #dfe6ee;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.45;
+      tab-size: 2;
+      box-sizing: border-box;
+    }
+    #editor:focus { outline: 1px solid var(--accent); }
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+    .hint .resize-tip {
+      color: var(--accent);
+      margin-left: 8px;
+    }
+    footer {
+      padding: 8px 16px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #status.ok { color: var(--ok); }
+    #status.err { color: var(--danger); }
+    #status.warn { color: var(--warn); }
+    .empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 40px;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .empty b { color: var(--text); }
+    code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: #12151a;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .badge {
+      font-size: 11px;
+      background: #2b4a44;
+      color: #8fd6c8;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      font-weight: 600;
+    }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-mask[hidden] { display: none !important; }
+    .modal {
+      width: min(520px, 94vw); background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px 18px 14px; color: var(--text);
+    }
+    .modal h2 { margin: 0 0 12px; font-size: 15px; }
+    .modal .field { margin-bottom: 10px; }
+    .modal .field > label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .modal .field input, .modal .field textarea, .modal .field select {
+      width: 100%; border: 1px solid var(--border); border-radius: 4px;
+      background: #12151a; color: var(--text); padding: 7px 8px; font: inherit; font-size: 13px;
+    }
+    .modal .field textarea { min-height: 56px; resize: vertical; font-family: var(--mono); }
+    .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+    .modal .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .warn-banner {
+      display: none; margin: 0 16px; padding: 8px 12px; border-radius: 4px;
+      background: #3a3218; color: #e6c35c; font-size: 12px; border: 1px solid #5a4a1a;
+    }
+    .warn-banner.show { display: block; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SMT8 Pattern Editor <span class="badge">V1</span></h1>
+    <button id="btnNew">新建 Pattern</button>
+    <label class="file-btn primary">打开 .pat<input id="fileOpen" type="file" accept=".pat,.zip,application/zip" /></label>
+    <label class="file-btn" title="选择 .pat，直接导出整合 TXT，页面不加载全文">导出整合 TXT<input id="fileExportTxt" type="file" accept=".pat,.zip,application/zip" /></label>
+    <label class="file-btn" title="选择整合 TXT，直接生成 .pat，页面不加载全文">TXT 转 .pat<input id="fileImportTxt" type="file" accept=".txt,text/plain" /></label>
+    <button id="btnSave" class="primary" disabled>保存 .pat</button>
+    <button id="btnValidate" disabled>校验</button>
+    <div class="spacer"></div>
+    <span id="fileName" style="font-size:12px;color:var(--muted)">未打开文件</span>
+    <button id="btnLanguage" type="button" aria-label="Switch language">EN</button>
+  </header>
+
+  <div class="meta" id="metaBar" hidden>
+    <div>信号: <strong id="mSignals">—</strong></div>
+    <div>向量行数: <strong id="mVec">—</strong></div>
+    <div>genVec 用量: <strong id="mGen">—</strong></div>
+    <div>Vectors 大小: <strong id="mSize">—</strong></div>
+    <div>成员: <strong id="mMembers">—</strong></div>
+  </div>
+  <div class="warn-banner" id="bigWarn"></div>
+
+  <div class="tabs" id="tabs" hidden>
+    <button class="tab active" data-tab="integrated">整合视图</button>
+    <button class="tab" data-tab="vectors">Vectors.vec</button>
+    <button class="tab" data-tab="program">Program.sprg</button>
+    <button class="tab" data-tab="comments">Comments.cmt</button>
+    <button class="tab" data-tab="patternComment">PatternComment.txt</button>
+  </div>
+
+  <main>
+    <div class="empty" id="empty">
+      <div>
+        <b>V1 · PAT ↔ 整合 TXT</b><br />
+        在浏览器中编辑、校验并保存 SMT8 PAT 文件，也可与整合 TXT 相互转换。
+      
+      </div>
+    </div>
+    <textarea id="editor" hidden spellcheck="false" wrap="off"></textarea>
+    <div class="hint" id="editorHint" hidden></div>
+  </main>
+
+  <footer>
+    <span id="status">就绪</span>
+    <span class="spacer"></span>
+    <span>V1 · PAT↔TXT</span>
+  </footer>
+
+  <div class="modal-mask" id="newModal" hidden>
+    <div class="modal" role="dialog">
+      <h2>新建 Pattern</h2>
+      <div class="field">
+        <label>文件名</label>
+        <input id="newName" type="text" value="new_pattern.pat" />
+      </div>
+      <div class="field">
+        <label>模板</label>
+        <select id="newTemplate">
+          <option value="blank">空白（自定义 pin）</option>
+          <option value="spi4">SPI 四线</option>
+          <option value="dio8">8 路数字 IO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Pin 名（逗号分隔）</label>
+        <textarea id="newPins" spellcheck="false">P0,P1,P2,P3</textarea>
+      </div>
+      <div class="field">
+        <label>向量行数</label>
+        <input id="newRows" type="number" min="1" max="500000" value="16" />
+      </div>
+      <div class="actions">
+        <button type="button" id="newCancel">取消</button>
+        <button type="button" class="primary" id="newCreate">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(() => {
+  const SIG_LOCAL = 0x04034b50;
+  const SIG_CENTRAL = 0x02014b50;
+  const SIG_END = 0x06054b50;
+  const METHOD_STORE = 0;
+  const METHOD_DEFLATE = 8;
+  const ZSTD = new Set([93, 98]);
+
+  const state = {
+    fileName: '',
+    members: {}, // name -> string
+    extras: {},  // name -> Uint8Array (binary extras like Properties.json kept as text if utf8)
+    activeTab: 'integrated',
+    dirty: false,
+  };
+  const $ = (id) => document.getElementById(id);
+
+  let language = 'zh';
+  const translations = [
+    ['新建 Pattern', 'New Pattern'], ['打开 .pat', 'Open .pat'], ['导出整合 TXT', 'Export Integrated TXT'],
+    ['TXT 转 .pat', 'TXT to .pat'], ['保存 .pat', 'Save .pat'], ['校验', 'Validate'], ['未打开文件', 'No file open'],
+    ['信号:', 'Signals:'], ['向量行数:', 'Vector rows:'], ['genVec 用量:', 'genVec count:'], ['Vectors 大小:', 'Vectors size:'], ['成员:', 'Members:'],
+    ['整合视图', 'Integrated'], ['V1 · PAT ↔ 整合 TXT', 'V1 · PAT ↔ Integrated TXT'],
+    ['在浏览器中编辑、校验并保存 SMT8 PAT 文件，也可与整合 TXT 相互转换。', 'Edit, validate, and save SMT8 PAT files in your browser, or convert them to and from integrated TXT.'],
+    ['就绪', 'Ready'], ['新建 Pattern', 'New Pattern'], ['文件名', 'File name'], ['模板', 'Template'], ['空白（自定义 pin）', 'Blank (custom pins)'], ['SPI 四线', 'SPI (4-wire)'], ['8 路数字 IO', '8-channel digital I/O'], ['Pin 名（逗号分隔）', 'Pin names (comma-separated)'], ['向量行数', 'Vector rows'], ['取消', 'Cancel'], ['创建', 'Create'],
+    ['正在导出整合 TXT（不加载编辑区）…', 'Exporting integrated TXT (without loading into the editor)…'], ['已导出 ', 'Exported '], ['（页面未加载该 pattern）', '(pattern was not loaded into the editor)'],
+    ['正在将 TXT 转为 .pat（不加载编辑区）…', 'Converting TXT to .pat (without loading into the editor)…'], ['已生成 ', 'Created '], [' 行 × ', ' rows × '], [' pin，未加载编辑区）', ' pins; not loaded into the editor)'],
+    ['正在打开…', 'Opening…'], ['已取消打开', 'Opening cancelled'], ['已打开 · 校验通过', 'Opened · validation passed'], ['已打开 · 存在校验问题（可编辑后修正）', 'Opened · validation issues found (edit to fix)'], ['正在打包…', 'Packaging…'], ['已下载:', 'Downloaded:'], ['（请放到 pattern 目录供 93k 使用）', '(place in the pattern directory for 93k)'],
+    ['当前有未保存修改，确定丢弃并继续？', 'There are unsaved changes. Discard and continue?'], ['需要至少一个 pin', 'At least one pin is required'], ['行数无效', 'Invalid row count'], ['正在生成…', 'Generating…'], ['已新建 · 编辑后保存 .pat', 'Created · edit and save as .pat'],
+    ['校验通过', 'Validation passed'], ['校验失败', 'Validation failed'], ['警告：', 'Warnings:'], ['缺少 Program.sprg', 'Missing Program.sprg'], ['向量列数不匹配:', 'Vector column count mismatch: '], ['有向量数据但未找到 genVec', 'Vectors found but no genVec instruction'],
+    ['载入编辑区…', 'Loading editor…'], ['生成整合视图…', 'Building integrated view…'], ['已修改', 'Modified'], ['每行一个 vector；列顺序与 Program 中 Instrument id 信号顺序一致。可用 Ctrl+F 搜索。', 'One vector per line; columns follow the Instrument signal order in Program. Use Ctrl+F to search.'], ['修改 genVec / loop 时，请保持与 Vectors.vec 行数一致。', 'When editing genVec / loop, keep the count consistent with Vectors.vec.'], ['可选注释；Comments.cmt 行为 “向量序号 + 空格 + 文本”。', 'Optional comments; each Comments.cmt line is “vector index + space + text”.'], ['右下角拖动可调整编辑区大小', 'Drag the lower-right corner to resize the editor'],
+    ['Vectors.vec', 'Vectors.vec'], ['Program.sprg', 'Program.sprg'], ['Comments.cmt', 'Comments.cmt'], ['PatternComment.txt', 'PatternComment.txt'],
+    ['整合格式：HEADER → pin → SPM_PATTERN (NAME) { *向量*指令 ; // 注释 }。保存/切 Tab 写回成员文件。', 'Integrated format: HEADER → pin → SPM_PATTERN (NAME) { *vector*instruction ; // comment }. Saving or switching tabs writes changes back to member files.'],
+    ['大文件提示：约 ', 'Large file: about '], [' 行 / ', ' rows / '], ['。文本模式一般可用，但搜索和编辑可能变慢；超大时勿频繁切换 Tab。V2 表格不适合这种规模。', '. Text mode should work, but search and editing may slow down. Avoid frequent tab switches for very large files; table mode is not suitable.'],
+    ['V4 可尝试打开，但可能较慢甚至卡顿。', 'V4 can try to open it, but may be slow or become unresponsive.'], ['文件约 ', 'File size: about '], [' MB。\n', ' MB.\n'], ['大文件更建议用「导出整合 TXT」。\n\n继续在编辑区打开？', 'For large files, use “Export Integrated TXT”.\n\nContinue opening in the editor?'],
+    ['Vectors 约 ', 'Vectors: about '], [' 行。\n', ' rows.\n'], ['整段放进文本框可能要数秒，并占用较多内存。\n\n继续？', 'Loading all rows into the editor may take several seconds and use significant memory.\n\nContinue?'],
+    ['将生成 ', 'This will generate '], [' 行全 0 向量，可能较慢/占内存。继续？', ' all-zero vector rows and may be slow or use significant memory. Continue?'],
+    ['就绪 · 可拖拽 .pat 到窗口', 'Ready · drop a .pat file into the window'], ['当前页内容无法解析，请先修正再切换：\n', 'The current content cannot be parsed. Fix it before switching tabs:\n'], ['需要 HEADER', 'HEADER is required'],
+    ['无法解析行:', 'Cannot parse line: '], ['必须以 HEADER 开头', 'Must start with HEADER'], ['HEADER 下一行需要 pin 列表', 'A pin list is required on the line after HEADER'], ['需要 SPM_PATTERN (NAME) { 行', 'Expected an SPM_PATTERN (NAME) { line'], ['格式不符合要求', 'has an invalid format']
+  ];
+  function translate(text) {
+    let result = String(text);
+    for (const [zh, en] of [...translations].sort((a, b) => b[0].length - a[0].length)) result = language === 'en' ? result.split(zh).join(en) : result.split(en).join(zh);
+    return result;
+  }
+  function applyLanguage() {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) walker.currentNode.nodeValue = translate(walker.currentNode.nodeValue);
+    document.querySelectorAll('[title]').forEach((el) => { el.title = translate(el.title); });
+    $('btnLanguage').textContent = language === 'zh' ? 'EN' : '中文';
+    $('btnLanguage').setAttribute('aria-label', language === 'zh' ? 'Switch to English' : '切换到中文');
+    if (!$('editor').hidden) syncEditorFromState();
+    else $('status').textContent = translate('就绪');
+  }
+  $('btnLanguage').addEventListener('click', () => { language = language === 'zh' ? 'en' : 'zh'; applyLanguage(); });
+  const nativeAlert = window.alert.bind(window);
+  window.alert = (message) => nativeAlert(translate(message));
+  const nativeConfirm = window.confirm.bind(window);
+  window.confirm = (message) => nativeConfirm(translate(message));
+
+  const tabToFile = {
+    vectors: 'Vectors.vec',
+    program: 'Program.sprg',
+    comments: 'Comments.cmt',
+    patternComment: 'PatternComment.txt',
+  };
+
+  const editor = $('editor');
+  const empty = $('empty');
+
+  function setStatus(msg, kind) {
+    const el = $('status');
+    el.textContent = translate(msg);
+    el.className = kind || '';
+  }
+
+  function readU16(u8, off) {
+    return u8[off] | (u8[off + 1] << 8);
+  }
+  function readU32(u8, off) {
+    return (u8[off] | (u8[off + 1] << 8) | (u8[off + 2] << 16) | (u8[off + 3] << 24)) >>> 0;
+  }
+  function pushU16(arr, v) {
+    arr.push(v & 255, (v >>> 8) & 255);
+  }
+  function pushU32(arr, v) {
+    arr.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255);
+  }
+
+  function crc32(buf) {
+    let c = ~0;
+    for (let i = 0; i < buf.length; i++) {
+      c ^= buf[i];
+      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+    }
+    return (~c) >>> 0;
+  }
+
+  async function inflateRaw(u8) {
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('当前浏览器不支持 DecompressionStream，请用 Chrome / Edge');
+    }
+    const ds = new DecompressionStream('deflate-raw');
+    const ab = await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(ab);
+  }
+
+  async function deflateRaw(u8) {
+    if (typeof CompressionStream === 'undefined') {
+      throw new Error('当前浏览器不支持 CompressionStream，请用 Chrome / Edge');
+    }
+    const cs = new CompressionStream('deflate-raw');
+    const ab = await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer();
+    return new Uint8Array(ab);
+  }
+
+  function td(u8) {
+    return new TextDecoder('utf-8').decode(u8);
+  }
+  function te(str) {
+    return new TextEncoder().encode(str);
+  }
+
+  async function unzip(data) {
+    const files = new Map();
+    let offset = 0;
+    while (offset + 4 <= data.length) {
+      const sig = readU32(data, offset);
+      if (sig === SIG_CENTRAL || sig === SIG_END) break;
+      if (sig !== SIG_LOCAL) break;
+      if (offset + 30 > data.length) throw new Error('ZIP 头损坏');
+      const method = readU16(data, offset + 8);
+      const flags = readU16(data, offset + 6);
+      const hasDD = (flags & 0x08) !== 0;
+      const compSize = readU32(data, offset + 18);
+      const nameLen = readU16(data, offset + 26);
+      const extraLen = readU16(data, offset + 28);
+      const nameStart = offset + 30;
+      const nameBytes = data.subarray(nameStart, nameStart + nameLen);
+      const name = td(nameBytes).replace(/\\/g, '/').replace(/^\.\//, '');
+      const dataStart = nameStart + nameLen + extraLen;
+      if (ZSTD.has(method)) {
+        throw new Error('该 .pat 使用 Zstd 压缩，本工具暂不支持。请先在 SMT 工作站转成 Deflate。');
+      }
+      if (method !== METHOD_STORE && method !== METHOD_DEFLATE) {
+        throw new Error('不支持的压缩方式 method=' + method + ' (' + name + ')');
+      }
+      if (hasDD && compSize === 0) {
+        throw new Error('含 data descriptor 且无大小，无法解析: ' + name);
+      }
+      const compressed = data.subarray(dataStart, dataStart + compSize);
+      let next = dataStart + compSize;
+      if (hasDD) next += readU32(data, next) === 0x08074b50 ? 16 : 12;
+      let raw;
+      if (method === METHOD_STORE) raw = compressed.slice();
+      else raw = await inflateRaw(compressed);
+      if (!name.endsWith('/')) files.set(name.includes('/') ? name.split('/').pop() : name, raw);
+      offset = next;
+    }
+    if (!files.size) throw new Error('空 ZIP 或不是有效的 SMT8 .pat');
+    return files;
+  }
+
+  async function zip(entries) {
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    const names = Object.keys(entries);
+    for (const name of names) {
+      const raw = entries[name] instanceof Uint8Array ? entries[name] : te(String(entries[name]));
+      const nameBuf = te(name);
+      const compressed = await deflateRaw(raw);
+      const crc = crc32(raw);
+      const flags = 0x0800;
+      const local = [];
+      pushU32(local, SIG_LOCAL);
+      pushU16(local, 20);
+      pushU16(local, flags);
+      pushU16(local, METHOD_DEFLATE);
+      pushU16(local, 0);
+      pushU16(local, 0);
+      pushU32(local, crc);
+      pushU32(local, compressed.length);
+      pushU32(local, raw.length);
+      pushU16(local, nameBuf.length);
+      pushU16(local, 0);
+      const localHeader = new Uint8Array(local.length + nameBuf.length + compressed.length);
+      localHeader.set(local, 0);
+      localHeader.set(nameBuf, local.length);
+      localHeader.set(compressed, local.length + nameBuf.length);
+
+      const central = [];
+      pushU32(central, SIG_CENTRAL);
+      pushU16(central, 20);
+      pushU16(central, 20);
+      pushU16(central, flags);
+      pushU16(central, METHOD_DEFLATE);
+      pushU16(central, 0);
+      pushU16(central, 0);
+      pushU32(central, crc);
+      pushU32(central, compressed.length);
+      pushU32(central, raw.length);
+      pushU16(central, nameBuf.length);
+      pushU16(central, 0);
+      pushU16(central, 0);
+      pushU16(central, 0);
+      pushU16(central, 0);
+      pushU32(central, 0);
+      pushU32(central, offset);
+      const centralHeader = new Uint8Array(central.length + nameBuf.length);
+      centralHeader.set(central, 0);
+      centralHeader.set(nameBuf, central.length);
+
+      localParts.push(localHeader);
+      centralParts.push(centralHeader);
+      offset += localHeader.length;
+    }
+    const centralDirLen = centralParts.reduce((n, p) => n + p.length, 0);
+    const end = [];
+    pushU32(end, SIG_END);
+    pushU16(end, 0);
+    pushU16(end, 0);
+    pushU16(end, names.length);
+    pushU16(end, names.length);
+    pushU32(end, centralDirLen);
+    pushU32(end, offset);
+    pushU16(end, 0);
+
+    const total = offset + centralDirLen + end.length;
+    const out = new Uint8Array(total);
+    let pos = 0;
+    for (const p of localParts) { out.set(p, pos); pos += p.length; }
+    for (const p of centralParts) { out.set(p, pos); pos += p.length; }
+    out.set(end, pos);
+    return out;
+  }
+
+  function parseSignals(program) {
+    const m = program.match(/<Instrument\s+id="([^"]+)"/i);
+    if (!m) return [];
+    return m[1].split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  function parseGenVecBlocks(xml) {
+    const blocks = [];
+    const re = /<Instruction\s+([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/Instruction>)/gi;
+    let m;
+    while ((m = re.exec(xml))) {
+      const attrs = m[1] || '';
+      const body = m[2] || '';
+      const idm = attrs.match(/\bid="([^"]+)"/i);
+      if (!idm || idm[1] !== 'genVec') continue;
+      const vm = attrs.match(/\bvalue="(\d+)"/i);
+      const count = vm ? parseInt(vm[1], 10) : 0;
+      let repeat = null;
+      const rm = body.match(/<Assignment\s+id="repeat"\s+value="(\d+)"/i);
+      if (rm) repeat = parseInt(rm[1], 10);
+      blocks.push({ count, repeat });
+    }
+    return blocks;
+  }
+
+  function parseCommentMap(text) {
+    const map = {};
+    String(text || '')
+      .split(/\r?\n/)
+      .forEach((line) => {
+        const m = line.match(/^\s*(\d+)\s+(.*)$/);
+        if (m) map[parseInt(m[1], 10)] = m[2];
+      });
+    return map;
+  }
+
+  function parseRptv(s) {
+    const t = String(s || '').trim();
+    if (!t) return null;
+    let m = t.match(/^RPTV\s+(\d+)\s*,\s*(\d+)\s*$/i);
+    if (m) return { count: parseInt(m[1], 10), repeat: parseInt(m[2], 10) };
+    m = t.match(/^RPTV\s+(\d+)\s*$/i);
+    if (m) return { count: parseInt(m[1], 10), repeat: null };
+    return null;
+  }
+
+  function instructionsToBlocks(rowInstr) {
+    const blocks = [];
+    let i = 0;
+    while (i < rowInstr.length) {
+      const rpt = parseRptv(rowInstr[i]);
+      if (rpt) {
+        const count = Math.max(1, rpt.count);
+        if (i + count > rowInstr.length) {
+          throw new Error(`第 ${i} 行 RPTV 需要 ${count} 行，只剩 ${rowInstr.length - i} 行`);
+        }
+        for (let k = 1; k < count; k++) {
+          if (parseRptv(rowInstr[i + k])) {
+            throw new Error(`第 ${i + k} 行不应再写 RPTV（属于上一块）`);
+          }
+        }
+        blocks.push({ count, repeat: rpt.repeat });
+        i += count;
+      } else {
+        let j = i + 1;
+        while (j < rowInstr.length && !parseRptv(rowInstr[j])) j++;
+        blocks.push({ count: j - i, repeat: null });
+        i = j;
+      }
+    }
+    return blocks;
+  }
+
+  function buildProgramXml(pins, blocks) {
+    const lines = [];
+    lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+    lines.push('<Program xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="Program.xsd">');
+    lines.push(`  <Instrument id="${pins.join(',')}">`);
+    for (const b of blocks) {
+      if (b.repeat != null) {
+        lines.push(`    <Instruction id="genVec" value="${b.count}">`);
+        lines.push(`      <Assignment id="repeat" value="${b.repeat}"/>`);
+        lines.push(`    </Instruction>`);
+      } else {
+        lines.push(`    <Instruction id="genVec" value="${b.count}"/>`);
+      }
+    }
+    lines.push('  </Instrument>');
+    lines.push('</Program>');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  /** Build HEADER / SPM_PATTERN integrated text from a members bag */
+  function buildIntegratedTextFrom(members, fileName) {
+    const program = members['Program.sprg'] || '';
+    const pins = parseSignals(program);
+    const vecs = vectorLines(members['Vectors.vec'] || '');
+    const comments = parseCommentMap(members['Comments.cmt'] || '');
+    const blocks = parseGenVecBlocks(program);
+    const instr = new Array(vecs.length).fill('');
+    let cursor = 0;
+    for (const b of blocks) {
+      if (cursor >= vecs.length) break;
+      if (b.repeat != null) {
+        instr[cursor] = `RPTV ${b.count},${b.repeat}`;
+      }
+      cursor += b.count;
+    }
+    const pname = (fileName || 'PATTERN').replace(/\.pat$/i, '') || 'PATTERN';
+    const out = [];
+    out.push('HEADER');
+    out.push(pins.length ? pins.join(', ') : '');
+    out.push(`SPM_PATTERN (${pname}) {`);
+    for (let i = 0; i < vecs.length; i++) {
+      const ins = instr[i] || '';
+      const cmt = comments[i] != null ? comments[i] : '';
+      out.push(`*${vecs[i]}*${ins} ; // ${cmt}`);
+    }
+    out.push('}');
+    return out.join('\n') + '\n';
+  }
+
+  function buildIntegratedText() {
+    return buildIntegratedTextFrom(state.members, state.fileName);
+  }
+
+  function downloadBlob(filename, blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    return filename;
+  }
+
+  function downloadTextFile(filename, text) {
+    // Do NOT use showSaveFilePicker here: export runs after async file-read,
+    // so the user-gesture token is already gone and the picker throws.
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    return Promise.resolve(downloadBlob(filename, blob));
+  }
+
+  /** Select .pat → export integrated TXT only (do not load into editor) */
+  async function exportPatAsIntegratedTxt(file) {
+    setStatus('正在导出整合 TXT（不加载编辑区）…');
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const files = await unzip(buf);
+      const members = {
+        'Program.sprg': '',
+        'Vectors.vec': '',
+        'Comments.cmt': '',
+      };
+      for (const [name, raw] of files) {
+        const base = name.split('/').pop();
+        if (base === 'Program.sprg' || base === 'Vectors.vec' || base === 'Comments.cmt') {
+          members[base] = td(raw);
+        }
+      }
+      if (!members['Program.sprg']) throw new Error('缺少 Program.sprg');
+      const text = buildIntegratedTextFrom(members, file.name);
+      const suggested = file.name.replace(/\.pat$/i, '') + '_integrated.txt';
+      const saved = await downloadTextFile(suggested, text);
+      setStatus('已导出 ' + saved + '（页面未加载该 pattern）', 'ok');
+    } catch (err) {
+      setStatus(String(err.message || err), 'err');
+      alert(String(err.message || err));
+    }
+  }
+
+  /** Parse integrated text → members object (does not touch editor state) */
+  function parseIntegratedText(text) {
+    const raw = String(text || '').replace(/^\uFEFF/, '');
+    const lines = raw.split(/\r?\n/);
+    let i = 0;
+    while (i < lines.length && !lines[i].trim()) i++;
+    if (!lines[i] || lines[i].trim().toUpperCase() !== 'HEADER') {
+      return { ok: false, error: '必须以 HEADER 开头' };
+    }
+    i++;
+    while (i < lines.length && !lines[i].trim()) i++;
+    const pins = (lines[i] || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    i++;
+    if (!pins.length) return { ok: false, error: 'HEADER 下一行需要 pin 列表' };
+
+    while (i < lines.length && !lines[i].trim()) i++;
+    const open = (lines[i] || '').trim();
+    const om = open.match(/^SPM_PATTERN\s*\(([^)]+)\)\s*\{\s*$/i);
+    if (!om) return { ok: false, error: '需要 SPM_PATTERN (NAME) { 行' };
+    const patternName = om[1].trim();
+    i++;
+
+    const vecs = [];
+    const rowInstr = [];
+    const comments = [];
+    // V4/V4.1: *vec*ins ; // cmt   and legacy V3: *vec*ins *; // cmt
+    const lineRe = /^\*([^*]+)\*(.*?)\s+\*?;\s*\/\/\s?(.*)$/;
+    while (i < lines.length) {
+      const t = lines[i].trimEnd();
+      i++;
+      if (!t.trim()) continue;
+      if (t.trim() === '}') break;
+      const m = t.match(lineRe);
+      if (!m) {
+        return { ok: false, error: `无法解析行: ${t.slice(0, 80)}` };
+      }
+      const vec = m[1];
+      const ins = (m[2] || '').trim();
+      const cmt = m[3] || '';
+      if (pins.length && vec.length !== pins.length) {
+        return {
+          ok: false,
+          error: `向量 \"${vec}\" 长度 ${vec.length} 与 pin 数 ${pins.length} 不符（第 ${vecs.length} 条）`,
+        };
+      }
+      vecs.push(vec);
+      rowInstr.push(ins);
+      comments.push(cmt);
+    }
+
+    let blocks;
+    try {
+      blocks = instructionsToBlocks(rowInstr);
+    } catch (e) {
+      return { ok: false, error: e.message || String(e) };
+    }
+    if (!blocks.length && vecs.length) {
+      blocks = [{ count: vecs.length, repeat: null }];
+    }
+
+    const cmtLines = [];
+    comments.forEach((c, idx) => {
+      if (String(c).trim()) cmtLines.push(`${idx} ${c.trim()}`);
+    });
+
+    const members = {
+      'Program.sprg': buildProgramXml(pins, blocks),
+      'Vectors.vec': vecs.length ? vecs.join('\n') + '\n' : '',
+      'Comments.cmt': cmtLines.length ? cmtLines.join('\n') + '\n' : '',
+    };
+    const base = (patternName || 'pattern').replace(/[<>:"/\\|?*]/g, '_');
+    return {
+      ok: true,
+      members,
+      patternName: base,
+      pinCount: pins.length,
+      vectorRows: vecs.length,
+    };
+  }
+
+  /** Apply integrated text into editor state.members */
+  function applyIntegratedText(text) {
+    const r = parseIntegratedText(text);
+    if (!r.ok) return r;
+    state.members['Program.sprg'] = r.members['Program.sprg'];
+    state.members['Vectors.vec'] = r.members['Vectors.vec'];
+    state.members['Comments.cmt'] = r.members['Comments.cmt'];
+    if (!state.members['PatternComment.txt']) state.members['PatternComment.txt'] = '';
+    if (r.patternName) {
+      if (!state.fileName || state.fileName === 'new_pattern.pat') {
+        state.fileName = r.patternName + '.pat';
+      }
+    }
+    return { ok: true };
+  }
+
+  /** Select integrated .txt → pack .pat and download (do not load editor) */
+  async function importTxtAsPat(file) {
+    setStatus('正在将 TXT 转为 .pat（不加载编辑区）…');
+    try {
+      const text = await file.text();
+      const r = parseIntegratedText(text);
+      if (!r.ok) throw new Error(r.error || 'TXT 格式不符合要求');
+      const out = await zip(r.members);
+      const suggested = (r.patternName || file.name.replace(/\.txt$/i, '') || 'pattern') + '.pat';
+      const blob = new Blob([out], { type: 'application/octet-stream' });
+      downloadBlob(suggested, blob);
+      setStatus(
+        `已生成 ${suggested}（${r.vectorRows} 行 × ${r.pinCount} pin，未加载编辑区）`,
+        'ok'
+      );
+    } catch (err) {
+      setStatus(String(err.message || err), 'err');
+      alert(String(err.message || err));
+    }
+  }
+
+  function sumGenVec(program) {
+    let n = 0;
+    const re = /<Instruction\s+[^>]*id="genVec"[^>]*value="(\d+)"[^>]*\/?>/gi;
+    let m;
+    while ((m = re.exec(program))) n += parseInt(m[1], 10);
+    return n;
+  }
+
+  function vectorLines(text) {
+    return String(text || '')
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .filter((l) => l.length > 0);
+  }
+
+  function validate() {
+    const issues = [];
+    const warnings = [];
+    const program = state.members['Program.sprg'] || '';
+    const vectors = state.members['Vectors.vec'] || '';
+    if (!program) issues.push('缺少 Program.sprg');
+    const signals = parseSignals(program);
+    const lines = vectorLines(vectors);
+    if (signals.length && lines.length) {
+      const bad = [];
+      lines.forEach((line, i) => {
+        if (line.length !== signals.length) {
+          bad.push('第' + (i + 1) + '行长度 ' + line.length + '，期望 ' + signals.length);
+        }
+      });
+      if (bad.length) issues.push('向量列数不匹配: ' + bad.slice(0, 5).join('; ') + (bad.length > 5 ? ' …' : ''));
+    }
+    const gen = sumGenVec(program);
+    if (lines.length && gen && gen !== lines.length) {
+      issues.push('genVec 用量=' + gen + '，但 Vectors.vec 有 ' + lines.length + ' 行');
+    } else if (lines.length && !gen) {
+      warnings.push('有向量数据但未找到 genVec');
+    }
+    return { ok: !issues.length, issues, warnings, signals, lines: lines.length, gen };
+  }
+
+  function refreshMeta() {
+    const v = validate();
+    const vec = state.members['Vectors.vec'] || '';
+    const bytes = te(vec).length;
+    const sizeLabel = bytes >= 1048576
+      ? (bytes / 1048576).toFixed(2) + ' MB'
+      : (bytes / 1024).toFixed(1) + ' KB';
+    $('mSignals').textContent = v.signals.length
+      ? (v.signals.length <= 8 ? v.signals.join(', ') : v.signals.length + ' pins')
+      : '—';
+    $('mVec').textContent = String(v.lines);
+    $('mGen').textContent = String(v.gen);
+    $('mSize').textContent = sizeLabel;
+    $('mMembers').textContent = Object.keys(state.members).concat(Object.keys(state.extras)).join(', ') || '—';
+    $('metaBar').hidden = false;
+
+    const warn = $('bigWarn');
+    if (v.lines >= 100000 || bytes >= 2 * 1024 * 1024) {
+      warn.textContent = translate('大文件提示：约 ') + v.lines.toLocaleString() + translate(' 行 / ') + sizeLabel + translate('。文本模式一般可用，但搜索和编辑可能变慢；超大时勿频繁切换 Tab。V2 表格不适合这种规模。');
+      warn.classList.add('show');
+    } else {
+      warn.classList.remove('show');
+      warn.textContent = '';
+    }
+  }
+
+  function syncEditorFromState() {
+    if (state.activeTab === 'integrated') {
+      setStatus('生成整合视图…');
+      editor.value = buildIntegratedText();
+      $('editorHint').innerHTML =
+        translate('整合格式：HEADER → pin → SPM_PATTERN (NAME) { *向量*指令 ; // 注释 }。保存/切 Tab 写回成员文件。') +
+        '<span class="resize-tip">' + translate('右下角拖动可调整编辑区大小') + '</span>';
+      setStatus(state.dirty ? '已修改' : '就绪', state.dirty ? 'warn' : '');
+      return;
+    }
+    const file = tabToFile[state.activeTab];
+    const text = state.members[file] != null ? state.members[file] : '';
+    setStatus('载入编辑区…');
+    editor.value = text;
+    const baseHint =
+      file === 'Vectors.vec'
+        ? '每行一个 vector；列顺序与 Program 中 Instrument id 信号顺序一致。可用 Ctrl+F 搜索。'
+        : file === 'Program.sprg'
+          ? '修改 genVec / loop 时，请保持与 Vectors.vec 行数一致。'
+          : '可选注释；Comments.cmt 行为 “向量序号 + 空格 + 文本”。';
+    $('editorHint').innerHTML = translate(baseHint) + '<span class="resize-tip">' + translate('右下角拖动可调整编辑区大小') + '</span>';
+    setStatus(state.dirty ? '已修改' : '就绪', state.dirty ? 'warn' : '');
+  }
+
+  function commitEditorToState() {
+    if (empty.hidden === false) return;
+    if (state.activeTab === 'integrated') {
+      const r = applyIntegratedText(editor.value);
+      if (!r.ok) {
+        throw new Error(r.error || '整合视图解析失败');
+      }
+      return;
+    }
+    const file = tabToFile[state.activeTab];
+    state.members[file] = editor.value;
+  }
+
+  function showLoadedUI() {
+    empty.hidden = true;
+    editor.hidden = false;
+    $('editorHint').hidden = false;
+    $('tabs').hidden = false;
+    $('btnSave').disabled = false;
+    $('btnValidate').disabled = false;
+    $('fileName').textContent = state.fileName + (state.dirty ? ' *' : '');
+    refreshMeta();
+    syncEditorFromState();
+    applyLanguage();
+  }
+
+  async function loadPatFile(file) {
+    setStatus('正在打开…');
+    try {
+      if (file.size >= 8 * 1024 * 1024) {
+        const ok = confirm(
+          '文件约 ' + (file.size / 1048576).toFixed(1) + ' MB。\n' +
+          'V4 可尝试打开，但可能较慢甚至卡顿。\n大文件更建议用「导出整合 TXT」。\n\n继续在编辑区打开？'
+        );
+        if (!ok) {
+          setStatus('已取消打开');
+          return;
+        }
+      }
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const files = await unzip(buf);
+      state.fileName = file.name;
+      state.members = {};
+      state.extras = {};
+      state.dirty = false;
+      for (const [name, raw] of files) {
+        const base = name.split('/').pop();
+        if (['Program.sprg', 'Vectors.vec', 'Comments.cmt', 'PatternComment.txt', 'Properties.json'].includes(base)) {
+          state.members[base] = td(raw);
+        } else {
+          state.extras[base] = raw;
+        }
+      }
+      if (!state.members['Program.sprg']) throw new Error('缺少必需文件 Program.sprg');
+      if (!state.members['Vectors.vec']) state.members['Vectors.vec'] = '';
+      if (!state.members['Comments.cmt']) state.members['Comments.cmt'] = '';
+      if (!state.members['PatternComment.txt']) state.members['PatternComment.txt'] = '';
+
+      const approxLines = (state.members['Vectors.vec'].match(/\n/g) || []).length +
+        (state.members['Vectors.vec'].length ? 1 : 0);
+      if (approxLines >= 200000) {
+        const ok = confirm(
+          'Vectors 约 ' + approxLines.toLocaleString() + ' 行。\n' +
+          '整段放进文本框可能要数秒，并占用较多内存。\n\n继续？'
+        );
+        if (!ok) {
+          setStatus('已取消打开');
+          return;
+        }
+      }
+
+      state.activeTab = 'integrated';
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === 'integrated'));
+      showLoadedUI();
+      const v = validate();
+      setStatus(v.ok ? '已打开 · 校验通过' : '已打开 · 存在校验问题（可编辑后修正）', v.ok ? 'ok' : 'warn');
+    } catch (err) {
+      setStatus(String(err.message || err), 'err');
+      alert(String(err.message || err));
+    }
+  }
+
+  async function savePat() {
+    try {
+      commitEditorToState();
+    } catch (err) {
+      setStatus(String(err.message || err), 'err');
+      alert(String(err.message || err));
+      return;
+    }
+    const v = validate();
+    if (!v.ok) {
+      const ok = confirm('校验未通过：\n\n' + v.issues.join('\n') + '\n\n仍要保存吗？');
+      if (!ok) return;
+    }
+    setStatus('正在打包…');
+    try {
+      const entries = {};
+      const order = ['Program.sprg', 'Vectors.vec', 'Comments.cmt', 'PatternComment.txt', 'Properties.json'];
+      for (const name of order) {
+        if (state.members[name] != null && !(name === 'PatternComment.txt' && state.members[name] === '') && !(name === 'Comments.cmt' && state.members[name] === '') && !(name === 'Properties.json' && !state.members[name])) {
+          if (name === 'Properties.json' && !state.members[name]) continue;
+          if ((name === 'Comments.cmt' || name === 'PatternComment.txt') && state.members[name] === '') continue;
+          entries[name] = state.members[name].replace(/\r?\n/g, '\n');
+        }
+      }
+      // ensure required
+      entries['Program.sprg'] = (state.members['Program.sprg'] || '').replace(/\r?\n/g, '\n');
+      if (state.members['Vectors.vec'] != null) {
+        entries['Vectors.vec'] = state.members['Vectors.vec'].replace(/\r?\n/g, '\n');
+      }
+      for (const [k, raw] of Object.entries(state.extras)) entries[k] = raw;
+
+      const out = await zip(entries);
+      const base = state.fileName.replace(/\.pat$/i, '') || 'pattern';
+      const suggested = base + '_edit.pat';
+      const blob = new Blob([out], { type: 'application/octet-stream' });
+      // Direct download — async pack often loses user-gesture for showSaveFilePicker
+      downloadBlob(suggested, blob);
+      state.dirty = false;
+      $('fileName').textContent = state.fileName;
+      setStatus('已下载: ' + suggested + '（请放到 pattern 目录供 93k 使用）', 'ok');
+    } catch (err) {
+      setStatus(String(err.message || err), 'err');
+      alert(String(err.message || err));
+    }
+  }
+
+  function confirmDiscardIfDirty() {
+    if (!state.dirty) return true;
+    return confirm('当前有未保存修改，确定丢弃并继续？');
+  }
+
+  function applyNewTemplate() {
+    const t = $('newTemplate').value;
+    if (t === 'spi4') $('newPins').value = 'PAD_SPI_MISO,PAD_SPI_MOSI,PAD_SPI_SCK,PAD_SPI_SCS';
+    else if (t === 'dio8') $('newPins').value = Array.from({ length: 8 }, (_, i) => 'D' + String(i).padStart(2, '0')).join(',');
+    else $('newPins').value = 'P0,P1,P2,P3';
+  }
+
+  function openNewModal() {
+    if (!confirmDiscardIfDirty()) return;
+    $('newName').value = 'new_pattern.pat';
+    $('newTemplate').value = 'blank';
+    $('newPins').value = 'P0,P1,P2,P3';
+    $('newRows').value = '16';
+    $('newModal').hidden = false;
+  }
+
+  function createNewFromModal() {
+    let name = ($('newName').value || 'new_pattern.pat').trim();
+    if (!/\.pat$/i.test(name)) name += '.pat';
+    const pins = ($('newPins').value || '').split(/[,，\n]+/).map((s) => s.trim()).filter(Boolean);
+    if (!pins.length) { alert('需要至少一个 pin'); return; }
+    const n = parseInt($('newRows').value, 10);
+    if (!n || n < 1) { alert('行数无效'); return; }
+    if (n > 200000) {
+      if (!confirm('将生成 ' + n.toLocaleString() + ' 行全 0 向量，可能较慢/占内存。继续？')) return;
+    }
+    setStatus('正在生成…');
+    // Build vectors in chunks to reduce intermediate arrays pressure for large n
+    const width = pins.map(() => '0').join('');
+    const parts = [];
+    const CHUNK = 5000;
+    for (let i = 0; i < n; i += CHUNK) {
+      const end = Math.min(n, i + CHUNK);
+      const block = [];
+      for (let j = i; j < end; j++) block.push(width);
+      parts.push(block.join('\n'));
+    }
+    const vec = parts.join('\n') + '\n';
+    const program =
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<Program xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="Program.xsd">\n' +
+      `  <Instrument id="${pins.join(',')}">\n` +
+      `    <Instruction id="genVec" value="${n}"/>\n` +
+      '  </Instrument>\n</Program>\n';
+    state.fileName = name;
+    state.members = {
+      'Program.sprg': program,
+      'Vectors.vec': vec,
+      'Comments.cmt': '',
+      'PatternComment.txt': '',
+    };
+    state.extras = {};
+    state.dirty = true;
+    state.activeTab = 'integrated';
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === 'integrated'));
+    $('newModal').hidden = true;
+    showLoadedUI();
+    setStatus('已新建 · 编辑后保存 .pat', 'ok');
+  }
+
+  $('fileOpen').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) {
+      if (!confirmDiscardIfDirty()) { e.target.value = ''; return; }
+      loadPatFile(f);
+    }
+    e.target.value = '';
+  });
+
+  $('btnNew').addEventListener('click', () => openNewModal());
+  $('fileExportTxt').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) exportPatAsIntegratedTxt(f);
+    e.target.value = '';
+  });
+  $('fileImportTxt').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) importTxtAsPat(f);
+    e.target.value = '';
+  });
+  $('newTemplate').addEventListener('change', () => applyNewTemplate());
+  $('newCancel').addEventListener('click', () => { $('newModal').hidden = true; });
+  $('newCreate').addEventListener('click', () => createNewFromModal());
+  $('btnSave').addEventListener('click', () => savePat());
+  $('btnValidate').addEventListener('click', () => {
+    commitEditorToState();
+    refreshMeta();
+    const v = validate();
+    if (v.ok) {
+      setStatus('校验通过 · 信号 ' + v.signals.length + ' · 向量 ' + v.lines + ' · genVec ' + v.gen, 'ok');
+      alert('校验通过');
+    } else {
+      setStatus('校验失败', 'err');
+      alert('校验失败：\n' + v.issues.join('\n') + (v.warnings.length ? '\n\n警告：\n' + v.warnings.join('\n') : ''));
+    }
+  });
+
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      try {
+        commitEditorToState();
+      } catch (err) {
+        setStatus(String(err.message || err), 'err');
+        alert('当前页内容无法解析，请先修正再切换：\n' + (err.message || err));
+        return;
+      }
+      state.activeTab = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
+      refreshMeta();
+      syncEditorFromState();
+    });
+  });
+
+  editor.addEventListener('input', () => {
+    state.dirty = true;
+    $('fileName').textContent = state.fileName + ' *';
+  });
+
+  window.addEventListener('dragover', (e) => { e.preventDefault(); });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && /\.pat$/i.test(f.name)) {
+      if (!confirmDiscardIfDirty()) return;
+      loadPatFile(f);
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('newModal').hidden) $('newModal').hidden = true;
+  });
+
+  setStatus('就绪 · 可拖拽 .pat 到窗口');
+})();
+  </script>
+</body>
+</html>
